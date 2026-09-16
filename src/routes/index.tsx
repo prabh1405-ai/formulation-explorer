@@ -73,7 +73,9 @@ function Index() {
           />
         ) : null}
         {step === 4 ? <StepModels analysis={analysis} onNext={() => setStep(5)} /> : null}
-        {step === 5 ? <StepGraphs analysis={analysis} onNext={() => setStep(6)} /> : null}
+        {step === 5 ? (
+          <StepGraphs analysis={analysis} store={store} onNext={() => setStep(6)} />
+        ) : null}
         {step === 6 ? <StepOptimize store={store} analysis={analysis} /> : null}
       </div>
     </main>

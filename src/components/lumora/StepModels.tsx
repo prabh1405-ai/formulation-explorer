@@ -113,8 +113,22 @@ export function StepModels({
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <div className="rounded-xl border border-border bg-panel/40 p-4">
-          <p className="mb-3 text-sm font-semibold">
+          <p className="mb-2 text-sm font-semibold">
             Response surface equation — {RESPONSES.find((r) => r.key === active)!.label}
+          </p>
+          <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-primary" />
+              Positive — raising this term <strong>increases</strong> the property
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-destructive" />
+              Negative (red) — raising this term <strong>decreases</strong> the property
+            </span>
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Colour only shows direction, not right or wrong. The bar length shows how
+            strong each term is; the intercept is the value at the centre point.
           </p>
           <div className="max-h-[320px] overflow-auto">
             <table className="w-full text-sm">
@@ -122,22 +136,54 @@ export function StepModels({
                 <tr>
                   <th className="py-1.5 text-left">Term (coded)</th>
                   <th className="py-1.5 text-right">Coefficient</th>
+                  <th className="py-1.5 text-right">Effect</th>
                 </tr>
               </thead>
               <tbody>
-                {m.rsm.terms.map((t, i) => (
-                  <tr key={t} className="border-t border-border/50">
-                    <td className="py-1.5">{t}</td>
-                    <td
-                      className={cn(
-                        "mono-num py-1.5 text-right",
-                        (m.rsm.coefficients[i] ?? 0) < 0 && "text-destructive",
-                      )}
-                    >
-                      {num(m.rsm.coefficients[i] ?? 0)}
-                    </td>
-                  </tr>
-                ))}
+                {m.rsm.terms.map((t, i) => {
+                  const c = m.rsm.coefficients[i] ?? 0;
+                  const isIntercept = /intercept/i.test(t);
+                  const maxAbs = Math.max(
+                    ...m.rsm.terms.map((tt, k) =>
+                      /intercept/i.test(tt) ? 0 : Math.abs(m.rsm.coefficients[k] ?? 0),
+                    ),
+                    1e-6,
+                  );
+                  const width = isIntercept
+                    ? 0
+                    : Math.min(100, (Math.abs(c) / maxAbs) * 100);
+                  return (
+                    <tr key={t} className="border-t border-border/50">
+                      <td className="py-1.5">{t}</td>
+                      <td
+                        className={cn(
+                          "mono-num py-1.5 text-right",
+                          !isIntercept && c < 0 && "text-destructive",
+                          !isIntercept && c > 0 && "text-primary",
+                        )}
+                      >
+                        {num(c)}
+                      </td>
+                      <td className="py-1.5 pl-3">
+                        {isIntercept ? (
+                          <span className="block text-right text-xs text-muted-foreground">
+                            baseline
+                          </span>
+                        ) : (
+                          <div className="ml-auto h-2 w-24 rounded-full bg-border/60">
+                            <div
+                              className={cn(
+                                "h-2 rounded-full",
+                                c < 0 ? "bg-destructive" : "bg-primary",
+                              )}
+                              style={{ width: `${width}%` }}
+                            />
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

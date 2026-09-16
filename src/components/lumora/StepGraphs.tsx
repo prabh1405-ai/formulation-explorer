@@ -12,16 +12,28 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { surfaceGrid, type Analysis } from "@/lib/lumora/analysis";
 import { RESPONSES, type ResponseKey } from "@/lib/lumora/types";
+import type { useLumora } from "@/lib/lumora/store";
 import { PlotlyChart } from "./PlotlyChart";
+import { BestRecipes } from "./BestRecipes";
 import { SectionTitle, Stat } from "./Shell";
 
-const COLORSCALE = "Viridis";
+/** Brand colour ramp: deep teal shadow -> lime highlight. */
+const COLORSCALE: [number, string][] = [
+  [0, "#04140e"],
+  [0.2, "#0b3b33"],
+  [0.4, "#12685a"],
+  [0.6, "#2f9e6e"],
+  [0.8, "#7ed957"],
+  [1, "#d8ff8a"],
+];
 
 export function StepGraphs({
   analysis,
+  store,
   onNext,
 }: {
   analysis: Analysis | null;
+  store: ReturnType<typeof useLumora>;
   onNext: () => void;
 }) {
   const [response, setResponse] = useState<ResponseKey>("hardness");
@@ -31,7 +43,7 @@ export function StepGraphs({
   const names = analysis?.dataset.names ?? [];
   const grid = useMemo(
     () =>
-      analysis && fx !== fy ? surfaceGrid(analysis, fx, fy, response, 28) : null,
+      analysis && fx !== fy ? surfaceGrid(analysis, fx, fy, response, 48) : null,
     [analysis, fx, fy, response],
   );
 
@@ -53,14 +65,21 @@ export function StepGraphs({
   const hi = Math.max(...fit.actual, ...fit.fitted);
 
   return (
-    <section className="panel p-6">
+    <section className="panel grid-bg p-6">
       <SectionTitle
         title="Response Graphs"
         hint="The surface and contour sweep two materials across their full range while the others stay at mid-point."
         right={
-          <Button size="lg" onClick={onNext}>
-            Optimize formulation <ArrowRight className="size-4" />
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <BestRecipes
+              analysis={analysis}
+              objectives={store.state.objectives}
+              seed={store.state.seed}
+            />
+            <Button size="lg" onClick={onNext}>
+              Optimize formulation <ArrowRight className="size-4" />
+            </Button>
+          </div>
         }
       />
 
@@ -93,65 +112,109 @@ export function StepGraphs({
       <Tabs defaultValue="surface">
         <TabsList>
           <TabsTrigger value="surface">3D surface</TabsTrigger>
-          <TabsTrigger value="contour">Contour</TabsTrigger>
-          <TabsTrigger value="parity">Actual vs predicted</TabsTrigger>
+          <TabsTrigger value="contour">Contour map</TabsTrigger>
+          <TabsTrigger value="parity">Model accuracy</TabsTrigger>
         </TabsList>
 
         <TabsContent value="surface" className="mt-4">
           {grid ? (
-            <PlotlyChart
-              height={520}
-              data={[
-                {
-                  type: "surface",
-                  x: grid.xs,
-                  y: grid.ys,
-                  z: grid.z,
-                  colorscale: COLORSCALE,
-                  contours: { z: { show: true, usecolormap: true, project: { z: true } } },
-                  colorbar: { title: { text: `${label} (%)` } },
-                },
-              ]}
-              layout={{
-                scene: {
-                  xaxis: { title: { text: `${names[fx]} (g)` } },
-                  yaxis: { title: { text: `${names[fy]} (g)` } },
-                  zaxis: { title: { text: `${label} (%)` } },
-                },
-                margin: { l: 0, r: 0, t: 10, b: 0 },
-              }}
-            />
+            <div className="overflow-hidden rounded-2xl border border-primary/20 bg-panel/40 p-2 shadow-[0_24px_60px_-40px_oklch(0.83_0.19_132/0.6)]">
+              <PlotlyChart
+                height={560}
+                data={[
+                  {
+                    type: "surface",
+                    x: grid.xs,
+                    y: grid.ys,
+                    z: grid.z,
+                    colorscale: COLORSCALE,
+                    opacity: 0.97,
+                    lighting: {
+                      ambient: 0.62,
+                      diffuse: 0.9,
+                      specular: 0.35,
+                      roughness: 0.45,
+                      fresnel: 0.25,
+                    },
+                    lightposition: { x: 120, y: 200, z: 160 },
+                    hovertemplate: `${names[fx]}: %{x:.2f} g<br>${names[fy]}: %{y:.2f} g<br>${label}: %{z:.1f}%<extra></extra>`,
+                    contours: {
+                      z: {
+                        show: true,
+                        usecolormap: true,
+                        project: { z: true },
+                        width: 3,
+                        highlightcolor: "#d8ff8a",
+                      },
+                    },
+                    colorbar: {
+                      title: { text: `${label} (%)` },
+                      thickness: 14,
+                      outlinewidth: 0,
+                      len: 0.75,
+                    },
+                  },
+                ]}
+                layout={{
+                  scene: {
+                    camera: { eye: { x: 1.55, y: -1.5, z: 0.85 } },
+                    aspectratio: { x: 1, y: 1, z: 0.72 },
+                    xaxis: sceneAxis(`${names[fx]} (g)`),
+                    yaxis: sceneAxis(`${names[fy]} (g)`),
+                    zaxis: sceneAxis(`${label} (%)`),
+                  },
+                  margin: { l: 0, r: 0, t: 10, b: 0 },
+                }}
+              />
+            </div>
           ) : null}
         </TabsContent>
 
         <TabsContent value="contour" className="mt-4">
           {grid ? (
-            <PlotlyChart
-              height={480}
-              data={[
-                {
-                  type: "contour",
-                  x: grid.xs,
-                  y: grid.ys,
-                  z: grid.z,
-                  colorscale: COLORSCALE,
-                  contours: { showlabels: true, labelfont: { size: 10, color: "#0b0f0c" } },
-                  colorbar: { title: { text: `${label} (%)` } },
-                },
-                {
-                  type: "scatter",
-                  mode: "markers",
-                  x: analysis.dataset.gramRows.map((g) => g[fx]),
-                  y: analysis.dataset.gramRows.map((g) => g[fy]),
-                  marker: { color: "#e8fff0", size: 7, line: { color: "#0b0f0c", width: 1 } },
-                  name: "Measured trials",
-                },
-              ]}
-              layout={{
-                xaxis: { title: { text: `${names[fx]} (g)` } },
-                yaxis: { title: { text: `${names[fy]} (g)` } },
-              }}
-            />
+            <div className="overflow-hidden rounded-2xl border border-primary/20 bg-panel/40 p-2">
+              <PlotlyChart
+                height={520}
+                data={[
+                  {
+                    type: "contour",
+                    x: grid.xs,
+                    y: grid.ys,
+                    z: grid.z,
+                    colorscale: COLORSCALE,
+                    line: { smoothing: 1.3, width: 1 },
+                    hovertemplate: `${names[fx]}: %{x:.2f} g<br>${names[fy]}: %{y:.2f} g<br>${label}: %{z:.1f}%<extra></extra>`,
+                    contours: {
+                      showlabels: true,
+                      labelfont: { size: 10, color: "#04140e" },
+                    },
+                    colorbar: {
+                      title: { text: `${label} (%)` },
+                      thickness: 14,
+                      outlinewidth: 0,
+                      len: 0.85,
+                    },
+                  },
+                  {
+                    type: "scatter",
+                    mode: "markers",
+                    x: analysis.dataset.gramRows.map((g) => g[fx]),
+                    y: analysis.dataset.gramRows.map((g) => g[fy]),
+                    marker: {
+                      color: "#e8fff0",
+                      size: 9,
+                      symbol: "circle",
+                      line: { color: "#04140e", width: 1.5 },
+                    },
+                    name: "Measured trials",
+                  },
+                ]}
+                layout={{
+                  xaxis: flatAxis(`${names[fx]} (g)`),
+                  yaxis: flatAxis(`${names[fy]} (g)`),
+                }}
+              />
+            </div>
           ) : null}
         </TabsContent>
 
@@ -161,44 +224,71 @@ export function StepGraphs({
             <Stat label="RSM RMSE" value={fit.rmse.toFixed(3)} />
             <Stat label="Forest OOB R²" value={forest.oobR2.toFixed(3)} />
           </div>
-          <PlotlyChart
-            height={460}
-            data={[
-              {
-                type: "scatter",
-                mode: "lines",
-                x: [lo, hi],
-                y: [lo, hi],
-                line: { color: "#7a8c80", dash: "dash" },
-                name: "Perfect fit",
-              },
-              {
-                type: "scatter",
-                mode: "markers",
-                x: fit.actual,
-                y: fit.fitted,
-                marker: { size: 10, color: "#9be15d" },
-                name: "RSM",
-              },
-              {
-                type: "scatter",
-                mode: "markers",
-                x: forest.actual,
-                y: forest.fitted,
-                marker: { size: 9, color: "#5dc8e1", symbol: "diamond" },
-                name: "Random forest",
-              },
-            ]}
-            layout={{
-              xaxis: { title: { text: `Measured ${label} (%)` } },
-              yaxis: { title: { text: `Predicted ${label} (%)` } },
-            }}
-          />
+          <div className="overflow-hidden rounded-2xl border border-primary/20 bg-panel/40 p-2">
+            <PlotlyChart
+              height={480}
+              data={[
+                {
+                  type: "scatter",
+                  mode: "lines",
+                  x: [lo, hi],
+                  y: [lo, hi],
+                  line: { color: "#7a8c80", dash: "dash" },
+                  name: "Perfect fit",
+                },
+                {
+                  type: "scatter",
+                  mode: "markers",
+                  x: fit.actual,
+                  y: fit.fitted,
+                  marker: {
+                    size: 12,
+                    color: "#9be15d",
+                    opacity: 0.9,
+                    line: { color: "#04140e", width: 1 },
+                  },
+                  name: "RSM",
+                },
+                {
+                  type: "scatter",
+                  mode: "markers",
+                  x: forest.actual,
+                  y: forest.fitted,
+                  marker: {
+                    size: 11,
+                    color: "#5dc8e1",
+                    symbol: "diamond",
+                    opacity: 0.9,
+                    line: { color: "#04140e", width: 1 },
+                  },
+                  name: "Random forest",
+                },
+              ]}
+              layout={{
+                xaxis: flatAxis(`Measured ${label} (%)`),
+                yaxis: flatAxis(`Predicted ${label} (%)`),
+              }}
+            />
+          </div>
         </TabsContent>
       </Tabs>
     </section>
   );
 }
+
+const sceneAxis = (text: string) => ({
+  title: { text },
+  gridcolor: "rgba(155,225,93,0.18)",
+  zerolinecolor: "rgba(155,225,93,0.35)",
+  backgroundcolor: "rgba(0,0,0,0)",
+  showbackground: true,
+});
+
+const flatAxis = (text: string) => ({
+  title: { text },
+  gridcolor: "rgba(155,225,93,0.12)",
+  zerolinecolor: "rgba(155,225,93,0.3)",
+});
 
 function FactorSelect({
   label,
