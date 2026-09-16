@@ -17,14 +17,14 @@ import { PlotlyChart } from "./PlotlyChart";
 import { BestRecipes } from "./BestRecipes";
 import { SectionTitle, Stat } from "./Shell";
 
-/** Brand colour ramp: deep teal shadow -> lime highlight. */
+/** Vibrant brand ramp: deep violet -> violet -> pink -> orange -> yellow. */
 const COLORSCALE: [number, string][] = [
-  [0, "#04140e"],
-  [0.2, "#0b3b33"],
-  [0.4, "#12685a"],
-  [0.6, "#2f9e6e"],
-  [0.8, "#7ed957"],
-  [1, "#d8ff8a"],
+  [0, "#2d0b5a"],
+  [0.2, "#7b2ff7"],
+  [0.4, "#c94ddb"],
+  [0.6, "#ff5fa2"],
+  [0.8, "#ff9d3f"],
+  [1, "#ffe94d"],
 ];
 
 export function StepGraphs({
@@ -144,7 +144,7 @@ export function StepGraphs({
                         usecolormap: true,
                         project: { z: true },
                         width: 3,
-                        highlightcolor: "#d8ff8a",
+                        highlightcolor: "#ffe94d",
                       },
                     },
                     colorbar: {
