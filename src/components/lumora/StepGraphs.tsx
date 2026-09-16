@@ -144,7 +144,7 @@ export function StepGraphs({
                         usecolormap: true,
                         project: { z: true },
                         width: 3,
-                        highlightcolor: "#d8ff8a",
+                        highlightcolor: "#ffe94d",
                       },
                     },
                     colorbar: {
